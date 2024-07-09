@@ -20,7 +20,7 @@ Product Store Service with UI
 """
 from flask import jsonify, request, abort
 from flask import url_for  # noqa: F401 pylint: disable=unused-import
-from service.models import Product
+from service.models import Product, Category
 from service.common import status  # HTTP Status Codes
 from . import app
 
@@ -88,23 +88,34 @@ def create_products():
     location_url = url_for("get_products", product_id=product.id, _external=True)
     return jsonify(message), status.HTTP_201_CREATED, {"Location": location_url}
 
-@app.route("/products", methods=["GET"])
-def read_all_products():
-    """
-    Reads all Products
-    """
-    app.logger.info("Request to read all Products in database ...")
-    products = Product.all()
-    data = [product.serialize() for product in products]
-    return jsonify(data), status.HTTP_200_OK
 
 ######################################################################
 # L I S T   A L L   P R O D U C T S
 ######################################################################
+@app.route("/products", methods=["GET"])
+def list_products():
+    """
+    Reads all Products
+    """
+    app.logger.info("Request to read all Products in database ...")
+    # Initialize an empty list to hold the products.
+    products = []
+    # Get the `name` parameter from the request (hint: use `request.args.get()`
+    name = request.args.get('name')
+    category = request.args.get('category')
+    avaialble = request.args.get('available')
+    if name:
+        products = Product.find_by_name(name)
+    elif category:
+        products = Product.find_by_category(getattr(Category, category))
+    elif avaialble == 'true':
+        products = Product.find_by_availability(True)
+    else:
+        products = Product.all()
+    data = [product.serialize() for product in products]
+    app.logger.info("[%s] Products returned", len(data))
+    return jsonify(data), status.HTTP_200_OK
 
-#
-# PLACE YOUR CODE TO LIST ALL PRODUCTS HERE
-#
 
 ######################################################################
 # R E A D   A   P R O D U C T
@@ -125,6 +136,8 @@ def get_products(product_id):
     app.logger.info("Reading a Product: ", product.name)
     data = product.serialize()
     return jsonify(data), status.HTTP_200_OK
+
+
 ######################################################################
 # U P D A T E   A   P R O D U C T
 ######################################################################
@@ -146,6 +159,7 @@ def update_products(product_id):
     product.deserialize(request.get_json())
     product.update()
     return jsonify(product.serialize()), status.HTTP_200_OK
+
 
 ######################################################################
 # D E L E T E   A   P R O D U C T
